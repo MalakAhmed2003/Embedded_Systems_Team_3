@@ -8,6 +8,9 @@ To get the Robot to explore and optimize the path taken to solve the maze:
 1- Upload the Maze_Solver.ino code to the Robot Arduino 
 2- Power up the system with ~ 9.4-9.6 V
 
+### Hardware Architecture
+<img width="1749" height="1273" alt="image" src="https://github.com/user-attachments/assets/e51b51a4-4ea3-4547-8b45-2d3131f91aad" />
+
 ### Code Architecture
 <img width="1459" height="1143" alt="maze_robot_architecture" src="https://github.com/user-attachments/assets/ffb2bc7a-26dc-47a9-a5d7-ae5c109fe859" />
 
