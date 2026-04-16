@@ -18,6 +18,9 @@ To run the Website correctly and connect it to the Arduino through the HC-10 Blu
 
 6- Change the serial print and read in Arduino code to be serial#, where # is based on the pins you are connecting your Hc-10 module to.
 
+The Website should look like:
+<img width="1375" height="1580" alt="image" src="https://github.com/user-attachments/assets/9bee1f54-0cdc-491d-9f62-e2a36fb4140e" />
+
 ## Exploration and Optimized Path:
 To get the Robot to explore and optimize the path taken to solve the maze:
 1- Upload the Maze_Solver.ino code to the Robot Arduino 
