@@ -17,3 +17,8 @@ To run the Website correctly and connect it to the Arduino through the HC-10 Blu
 5- Run the Website.py
 
 6- Change the serial print and read in Arduino code to be serial#, where # is based on the pins you are connecting your Hc-10 module to.
+
+## Exploration and Optimized Path:
+To get the Robot to explore and optimize the path taken to solve the maze:
+1- Upload the Maze_Solver.ino code to the Robot Arduino 
+2- Power up the system with ~ 9.4-9.6 V
