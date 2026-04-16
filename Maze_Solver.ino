@@ -19,7 +19,7 @@ int turnSpeed = 90;
 
 // PD controller variables for smooth movement
 float Kp = 50;
-float Kd = 50;
+float Kd = 60;
 
 // Path tracking vector creation
 char path[200] = "";
@@ -236,23 +236,57 @@ void optimizePath() {
 void runOptimizedPath() {
   readSensors(); 
 
-  if (LeftFar == 0 && LeftNear == 0 && Center == 0 && RightNear == 0 && RightFar == 0) {
-    forward(); delay(50);
+  // ===== GOAL DETECTION (same as exploration) =====
+  if (pathIndex >= pathLength && 
+      LeftFar == 0 && LeftNear == 0 && Center == 0 && 
+      RightNear == 0 && RightFar == 0) {
+    
+    forward();
+    delay(50);
+
+    unsigned long startTime = millis();
+    while (millis() - startTime < 200) {
+      readSensors();
+      if (LeftFar != 0 || LeftNear != 0 || Center != 0 || 
+          RightNear != 0 || RightFar != 0) {
+        return;
+      }
+    }
+
     stopMotors();
     Serial3.println("=== OPTIMIZED MAZE SOLVED! ===");
-    runOptimizedMode = false; 
+    runOptimizedMode = false;
+    pathIndex = 0;
+    inIntersection = false;
     return;
   }
 
+  // ===== INTERSECTION DETECTION (same as exploration) =====
   bool isJunction = (LeftFar == 0 || RightFar == 0);
 
   if (isJunction && !inIntersection) {
-    if (pathIndex < pathLength) {
-      
-      forward(); 
-      delay(150); 
-      stopMotors();
+    
+    // STEP 1: Check available paths (same as exploration)
+    bool canTurnLeft = (LeftFar == 0);
+    bool canTurnRight = (RightFar == 0);
 
+    // STEP 2: Center into intersection (same as exploration)
+    unsigned long centerStartTime = millis();
+    forward();
+    
+    while (millis() - centerStartTime < 150) {
+      readSensors();
+      if (LeftFar == 0) canTurnLeft = true;
+      if (RightFar == 0) canTurnRight = true;
+    }
+    stopMotors();
+
+    // STEP 3: Check straight path (same as exploration)
+    int straightPathExists = stableRead(S2);
+    bool canGoStraight = (straightPathExists == 0);
+
+    // STEP 4: Get target global direction from optimized path
+    if (pathIndex < pathLength) {
       char targetGlobal = path[pathIndex];
       Direction targetDir = currentDirection;
 
@@ -261,30 +295,102 @@ void runOptimizedPath() {
       else if (targetGlobal == 'S') targetDir = SOUTH;
       else if (targetGlobal == 'W') targetDir = WEST;
 
+      // Calculate which way to turn
       int turnDiff = (targetDir - currentDirection + 4) % 4;
 
-      if (turnDiff == 3) { 
+      // STEP 5: Execute based on turnDiff, but verify path is available (same safety as exploration)
+      if (turnDiff == 3 && canTurnLeft) {  // Left turn
         turnLeft90();
         updateLeft();
-      } 
-      else if (turnDiff == 1) { 
+        Serial3.print("Turned LEFT at junction, now facing ");
+        Serial3.println(getGlobalHeading());
+        pathIndex++;
+      }
+      else if (turnDiff == 1 && canTurnRight) {  // Right turn
         turnRight90();
         updateRight();
-      } 
-      else if (turnDiff == 0) {
-        // Just continue
+        Serial3.print("Turned RIGHT at junction, now facing ");
+        Serial3.println(getGlobalHeading());
+        pathIndex++;
       }
-      
-      pathIndex++;
-      inIntersection = true;
+      else if (turnDiff == 0 && canGoStraight) {  // Straight
+        Serial3.println("Going STRAIGHT at junction");
+        pathIndex++;
+      }
+      else if (turnDiff == 2) {  // U-turn
+        turn180();
+        updateBack();
+        Serial3.println("Turned BACK at junction");
+        pathIndex++;
+      }
+      else {
+        // Path mismatch - fallback to exploration priority (Left > Straight > Right)
+        Serial3.print("WARNING: Path wants ");
+        Serial3.print(targetGlobal);
+        Serial3.print(" but not available. Using exploration logic. Path index: ");
+        Serial3.println(pathIndex);
+        
+        if (canTurnLeft) {
+          turnLeft90();
+          updateLeft();
+          Serial3.println("Exploration fallback: Turning LEFT");
+          pathIndex++;
+        }
+        else if (canGoStraight) {
+          Serial3.println("Exploration fallback: Going STRAIGHT");
+          pathIndex++;
+        }
+        else if (canTurnRight) {
+          turnRight90();
+          updateRight();
+          Serial3.println("Exploration fallback: Turning RIGHT");
+          pathIndex++;
+        }
+      }
     }
-  } 
+    
+    inIntersection = true;
+    
+    Serial3.print("Path progress: ");
+    Serial3.print(pathIndex);
+    Serial3.print("/");
+    Serial3.println(pathLength);
+  }
+  
+  // ===== NORMAL LINE FOLLOWING (same as exploration) =====
   else if (Center == 0 || LeftNear == 0 || RightNear == 0) {
     pdControlFollow(LeftNear, Center, RightNear);
   }
 
-  if (Center == 0 && RightNear == 1 && LeftNear == 1 && RightFar == 1 && LeftFar == 1) {
+  // ===== EXIT INTERSECTION CONDITION (same as exploration) =====
+  if (Center == 0 && RightNear == 1 && LeftNear == 1 && 
+      RightFar == 1 && LeftFar == 1) {
     inIntersection = false;
+    Serial3.println("Exited intersection");
+  }
+
+  // ===== DEAD END DETECTION (same as exploration) =====
+  if (LeftFar == 1 && LeftNear == 1 && Center == 1 && 
+      RightNear == 1 && RightFar == 1) {
+    
+    unsigned long startTime = millis();
+    bool isDeadEnd = true;
+
+    while (millis() - startTime < 200) {
+      readSensors();
+      if (LeftFar == 0 || LeftNear == 0 || Center == 0 || 
+          RightNear == 0 || RightFar == 0) {
+        isDeadEnd = false;
+        break;
+      }
+    }
+    
+    if (isDeadEnd) {
+      turn180();
+      updateBack();
+      Serial3.println("Dead end detected in optimized run");
+      return;
+    }
   }
 }
 
