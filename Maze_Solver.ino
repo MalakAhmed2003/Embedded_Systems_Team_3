@@ -236,7 +236,7 @@ void optimizePath() {
 void runOptimizedPath() {
   readSensors(); 
 
-  // ===== GOAL DETECTION (same as exploration) =====
+  // end goal detection
   if (pathIndex >= pathLength && 
       LeftFar == 0 && LeftNear == 0 && Center == 0 && 
       RightNear == 0 && RightFar == 0) {
@@ -261,16 +261,16 @@ void runOptimizedPath() {
     return;
   }
 
-  // ===== INTERSECTION DETECTION (same as exploration) =====
+  // Intersection detection
   bool isJunction = (LeftFar == 0 || RightFar == 0);
 
   if (isJunction && !inIntersection) {
     
-    // STEP 1: Check available paths (same as exploration)
+    // Check available paths
     bool canTurnLeft = (LeftFar == 0);
     bool canTurnRight = (RightFar == 0);
 
-    // STEP 2: Center into intersection (same as exploration)
+    // Center into intersection 
     unsigned long centerStartTime = millis();
     forward();
     
@@ -281,11 +281,11 @@ void runOptimizedPath() {
     }
     stopMotors();
 
-    // STEP 3: Check straight path (same as exploration)
+    // Check straight path (same as exploration)
     int straightPathExists = stableRead(S2);
     bool canGoStraight = (straightPathExists == 0);
 
-    // STEP 4: Get target global direction from optimized path
+    // Get target global direction from optimized path
     if (pathIndex < pathLength) {
       char targetGlobal = path[pathIndex];
       Direction targetDir = currentDirection;
@@ -298,7 +298,7 @@ void runOptimizedPath() {
       // Calculate which way to turn
       int turnDiff = (targetDir - currentDirection + 4) % 4;
 
-      // STEP 5: Execute based on turnDiff, but verify path is available (same safety as exploration)
+      // Execute based on turnDiff, but verify path is available
       if (turnDiff == 3 && canTurnLeft) {  // Left turn
         turnLeft90();
         updateLeft();
@@ -324,7 +324,7 @@ void runOptimizedPath() {
         pathIndex++;
       }
       else {
-        // Path mismatch - fallback to exploration priority (Left > Straight > Right)
+        // If path mismatch what obot sees, follow (Left > Straight > Right)
         Serial3.print("WARNING: Path wants ");
         Serial3.print(targetGlobal);
         Serial3.print(" but not available. Using exploration logic. Path index: ");
@@ -357,19 +357,19 @@ void runOptimizedPath() {
     Serial3.println(pathLength);
   }
   
-  // ===== NORMAL LINE FOLLOWING (same as exploration) =====
+  // Line following
   else if (Center == 0 || LeftNear == 0 || RightNear == 0) {
     pdControlFollow(LeftNear, Center, RightNear);
   }
 
-  // ===== EXIT INTERSECTION CONDITION (same as exploration) =====
+  // Exit intersection condition
   if (Center == 0 && RightNear == 1 && LeftNear == 1 && 
       RightFar == 1 && LeftFar == 1) {
     inIntersection = false;
     Serial3.println("Exited intersection");
   }
 
-  // ===== DEAD END DETECTION (same as exploration) =====
+  // Dead end detection
   if (LeftFar == 1 && LeftNear == 1 && Center == 1 && 
       RightNear == 1 && RightFar == 1) {
     
